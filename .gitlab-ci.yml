@@ -1,0 +1,45 @@
+stages:
+  - build_push_image
+  - tagTest_image
+  - tagProd_image
+
+before_script:
+  - whoami
+  - docker info 
+  - docker login -u "admin" -p "Harbor12345" 192.168.0.64:3333
+  - git submodule sync --recursive
+  - git submodule update --init --remote --recursive
+
+variables:
+  GIT_CLEAN_FLAGS: -ffd
+
+
+cmptemplate_push_image: 
+  stage: build_push_image
+  when: manual
+  script:
+    - docker build --no-cache -t 192.168.0.64:3333/message/cmptemplate:latest .
+    - docker push 192.168.0.64:3333/message/cmptemplate:latest
+
+cmptemplate_tagTest_image:
+  stage: tagTest_image
+  before_script:
+    - cd .. && rm -rf $CI_COMMIT_SHORT_SHA && mkdir $CI_COMMIT_SHORT_SHA && cd $CI_COMMIT_SHORT_SHA
+    - git clone --depth=1 http://adstest:sdf*%26%5E*kj@192.168.0.64/Build/cicd.git
+    - git config --global user.email "gitlab@git.k8s.local"
+    - git config --global user.name "GitLab CI/CD"
+  when: manual
+  script:
+    - docker pull 192.168.0.64:3333/message/cmptemplate:latest
+    - docker tag 192.168.0.64:3333/message/cmptemplate:latest   192.168.0.64:3333/message/cmptemplate:$V 
+    - docker push 192.168.0.64:3333/message/cmptemplate:$V
+ 
+
+cmptemplate_tagProd_image:
+  stage: tagProd_image
+  before_script:
+    - docker login -u "itdev" -p "ReFxu0YJDwxJje53fxXf7w" harbor.ilekang.org:8090
+  when: manual
+  script:
+    - docker tag 192.168.0.64:3333/message/cmptemplate:$V harbor.ilekang.org:8090/message/cmptemplate:$V
+    - docker push harbor.ilekang.org:8090/message/cmptemplate:$V
